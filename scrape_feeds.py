@@ -130,9 +130,11 @@ class DataFeedScraper:
             # Get headers
             headers = table.find_elements(By.TAG_NAME, "th")
             header_texts = [header.text.strip() for header in headers]
+            header_texts.append("Feed URL")  # Add new column for feed URL
             
             # Get all rows
             rows = table.find_elements(By.TAG_NAME, "tr")[1:]  # Skip header row
+            logger.info(f"Found {len(rows)} feed rows to process")
             
             feeds_data = []
             for row in rows:
@@ -142,7 +144,26 @@ class DataFeedScraper:
                     for i, cell in enumerate(cells):
                         if i < len(header_texts):
                             row_data[header_texts[i]] = cell.text.strip()
+                    
+                    # Extract feed ID from the onclick attribute
+                    feed_id = None
+                    for cell in cells:
+                        onclick = cell.get_attribute('onclick')
+                        if onclick and 'data_feed_id=' in onclick:
+                            feed_id = onclick.split('data_feed_id=')[1].split('&')[0].strip("'")
+                            break
+                    
+                    if feed_id:
+                        feed_url = f"https://swym.ai/admin/data/feeds?action=edit&data_feed_id={feed_id}"
+                        row_data["Feed URL"] = feed_url
+                        logger.info(f"Found feed URL: {feed_url}")
+                    else:
+                        logger.warning("Could not find feed ID")
+                        row_data["Feed URL"] = ""
+                    
                     feeds_data.append(row_data)
+                    logger.info(f"Processed feed: {row_data.get('Name', 'Unknown')}")
+                    
                 except Exception as e:
                     logger.warning(f"Failed to process row: {str(e)}")
                     continue
